@@ -17,5 +17,5 @@ export const getEmbeddingLLMModel = () => {
         apiKey: process.env.EMBEDDING_API_KEY,
     })
 
-    return embedding(process.env.EMBEDDING_MODEL_NAME || "BAAI/bge-m3")
+    return embedding.textEmbeddingModel(process.env.EMBEDDING_MODEL_NAME || "BAAI/bge-m3")
 }
