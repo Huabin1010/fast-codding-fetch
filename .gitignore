@@ -44,3 +44,5 @@ next-env.d.ts
 
 # database
 dev.db
+
+vector.db*

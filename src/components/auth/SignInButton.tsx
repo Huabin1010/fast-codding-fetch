@@ -26,25 +26,11 @@ export default function SignInButton() {
   }
 
   return (
-    <div className="flex gap-2">
-      <button
-        onClick={() => signIn("google")}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
-      >
-        Sign in with Google
-      </button>
-      <button
-        onClick={() => signIn("github")}
-        className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded transition-colors"
-      >
-        Sign in with GitHub
-      </button>
-      <button
-        onClick={() => signIn()}
-        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors"
-      >
-        Sign In
-      </button>
-    </div>
+    <button
+      onClick={() => signIn("credentials")}
+      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+    >
+      Sign In (admin / 123456qq)
+    </button>
   )
 }

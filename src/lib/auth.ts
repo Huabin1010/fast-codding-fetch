@@ -1,21 +1,10 @@
 import { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import GoogleProvider from "next-auth/providers/google"
-import GitHubProvider from "next-auth/providers/github"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "./prisma"
+import { validateAdminCredentials, checkAdminExists, createAdminUser } from "./admin"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development",
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
-    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -27,13 +16,18 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Add your own logic here to validate credentials
-        // This is just a basic example - in production, hash passwords!
-        if (credentials.email === "test@example.com" && credentials.password === "password") {
+        // Check if admin exists, create if not
+        if (!checkAdminExists()) {
+          createAdminUser()
+        }
+
+        // Validate admin credentials
+        if (validateAdminCredentials(credentials.email, credentials.password)) {
           return {
             id: "1",
             email: credentials.email,
-            name: "Test User",
+            name: "Admin User",
+            role: "admin"
           }
         }
 
@@ -43,10 +37,6 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-  },
-  pages: {
-    signIn: "/auth/signin",
-    signOut: "/auth/signout",
   },
   callbacks: {
     async jwt({ token, user }) {
