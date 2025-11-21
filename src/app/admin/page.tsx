@@ -24,7 +24,9 @@ export default function AdminDashboard() {
   })
   const [loading, setLoading] = useState(true)
 
-  const userId = 'demo-user-id'
+  // TODO: 从认证系统获取 userId
+  // 当前使用管理员用户 ID (匹配 NextAuth 中的默认管理员账号)
+  const userId = '1'
 
   useEffect(() => {
     loadDashboardData()

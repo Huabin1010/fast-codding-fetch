@@ -11,6 +11,18 @@ export async function createProject(data: {
   userId: string
 }) {
   try {
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: data.userId },
+    })
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found. Please ensure you are logged in.',
+      }
+    }
+
     const project = await prisma.project.create({
       data: {
         name: data.name,
@@ -23,6 +35,23 @@ export async function createProject(data: {
     return { success: true, data: project }
   } catch (error) {
     console.error('Failed to create project:', error)
+    
+    // Handle specific Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'P2002') {
+        return {
+          success: false,
+          error: 'A project with this name already exists.',
+        }
+      }
+      if (error.code === 'P2003') {
+        return {
+          success: false,
+          error: 'Invalid user reference. Please ensure you are logged in.',
+        }
+      }
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create project',

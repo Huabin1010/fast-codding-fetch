@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { use, useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Database, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
@@ -10,12 +10,15 @@ import FileList from './file-list'
 import SearchPanel from './search-panel'
 import Link from 'next/link'
 
-export default function IndexDetailPage({ params }: { params: { indexId: string } }) {
+export default function IndexDetailPage({ params }: { params: Promise<{ indexId: string }> }) {
+  const { indexId } = use(params)
   const [index, setIndex] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const userId = 'demo-user-id'
+  // TODO: 从认证系统获取 userId
+  // 当前使用管理员用户 ID (匹配 NextAuth 中的默认管理员账号)
+  const userId = '1'
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
@@ -24,11 +27,11 @@ export default function IndexDetailPage({ params }: { params: { indexId: string 
 
   useEffect(() => {
     loadIndex()
-  }, [])
+  }, [indexId])
 
   const loadIndex = async () => {
     setLoading(true)
-    const result = await getIndex(params.indexId, userId)
+    const result = await getIndex(indexId, userId)
     if (result.success) {
       setIndex(result.data)
     } else {
@@ -110,11 +113,11 @@ export default function IndexDetailPage({ params }: { params: { indexId: string 
         </TabsList>
 
         <TabsContent value="files">
-          <FileList indexId={params.indexId} userId={userId} showMessage={showMessage} />
+          <FileList indexId={indexId} userId={userId} showMessage={showMessage} />
         </TabsContent>
 
         <TabsContent value="search">
-          <SearchPanel indexId={params.indexId} userId={userId} showMessage={showMessage} />
+          <SearchPanel indexId={indexId} userId={userId} showMessage={showMessage} />
         </TabsContent>
       </Tabs>
     </div>

@@ -16,7 +16,10 @@ export default function ProjectsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // TODO: 从认证系统获取 userId
-  const userId = 'demo-user-id'
+  // 当前使用管理员用户 ID (匹配 NextAuth 中的默认管理员账号)
+  // 默认管理员: admin / 123456qq
+  // 如果遇到 "User not found" 错误，请运行: pnpm db:seed
+  const userId = '1'
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })

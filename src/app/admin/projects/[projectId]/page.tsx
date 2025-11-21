@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { use, useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, FolderOpen, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
@@ -10,12 +10,15 @@ import IndexList from './index-list'
 import ProjectSettings from './project-settings'
 import Link from 'next/link'
 
-export default function ProjectDetailPage({ params }: { params: { projectId: string } }) {
+export default function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
+  const { projectId } = use(params)
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const userId = 'demo-user-id'
+  // TODO: 从认证系统获取 userId
+  // 当前使用管理员用户 ID (匹配 NextAuth 中的默认管理员账号)
+  const userId = '1'
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
@@ -24,11 +27,11 @@ export default function ProjectDetailPage({ params }: { params: { projectId: str
 
   useEffect(() => {
     loadProject()
-  }, [])
+  }, [projectId])
 
   const loadProject = async () => {
     setLoading(true)
-    const result = await getProject(params.projectId, userId)
+    const result = await getProject(projectId, userId)
     if (result.success) {
       setProject(result.data)
     } else {
@@ -109,7 +112,7 @@ export default function ProjectDetailPage({ params }: { params: { projectId: str
 
         <TabsContent value="indexes">
           <IndexList
-            projectId={params.projectId}
+            projectId={projectId}
             userId={userId}
             showMessage={showMessage}
           />
