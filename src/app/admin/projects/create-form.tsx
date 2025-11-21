@@ -6,17 +6,16 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Plus } from 'lucide-react'
 import { createProject } from './actions'
+import { toast } from 'sonner'
 
 interface CreateProjectFormProps {
   userId: string
   onSuccess: () => void
-  showMessage: (type: 'success' | 'error', text: string) => void
 }
 
 export default function CreateProjectForm({
   userId,
   onSuccess,
-  showMessage,
 }: CreateProjectFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -26,7 +25,7 @@ export default function CreateProjectForm({
     e.preventDefault()
 
     if (!name.trim()) {
-      showMessage('error', '项目名称不能为空')
+      toast.error('项目名称不能为空')
       return
     }
 
@@ -35,12 +34,12 @@ export default function CreateProjectForm({
     setLoading(false)
 
     if (result.success) {
-      showMessage('success', '项目创建成功')
+      toast.success('项目创建成功')
       setName('')
       setDescription('')
       onSuccess()
     } else {
-      showMessage('error', result.error || '创建失败')
+      toast.error(result.error || '创建失败')
     }
   }
 

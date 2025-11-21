@@ -368,6 +368,39 @@ export async function getFile(fileId: string, userId: string) {
   }
 }
 
+export async function getFileChunks(fileId: string, userId: string) {
+  try {
+    const file = await prisma.file.findFirst({
+      where: {
+        id: fileId,
+        index: {
+          project: { userId },
+        },
+      },
+      include: {
+        chunks: {
+          orderBy: { chunkIndex: 'asc' },
+        },
+      },
+    })
+
+    if (!file) {
+      return {
+        success: false,
+        error: 'File not found or access denied',
+      }
+    }
+
+    return { success: true, data: file.chunks }
+  } catch (error) {
+    console.error('Failed to get file chunks:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get file chunks',
+    }
+  }
+}
+
 export async function deleteFile(fileId: string, userId: string) {
   try {
     // 验证权限

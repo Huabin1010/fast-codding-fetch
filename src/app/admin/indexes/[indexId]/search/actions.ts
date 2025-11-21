@@ -66,48 +66,12 @@ export async function searchInIndex(data: {
       (result) => !result.score || result.score >= minScore
     )
 
-    // 5. 关联 Prisma 数据
-    const enrichedResults = await Promise.all(
-      filteredResults.map(async (result) => {
-        const chunk = await prisma.chunk.findFirst({
-          where: { vectorId: result.id },
-          include: {
-            file: {
-              include: {
-                index: {
-                  include: {
-                    project: true,
-                  },
-                },
-              },
-            },
-          },
-        })
-
-        return {
-          score: result.score,
-          chunk: chunk
-            ? {
-                id: chunk.id,
-                text: chunk.text,
-                chunkIndex: chunk.chunkIndex,
-                file: {
-                  id: chunk.file.id,
-                  name: chunk.file.name,
-                },
-              }
-            : null,
-          metadata: result.metadata,
-        }
-      })
-    )
-
     return {
       success: true,
       data: {
-        results: enrichedResults.filter((r) => r.chunk !== null),
+        results: filteredResults,
         query: data.query,
-        totalResults: enrichedResults.length,
+        totalResults: filteredResults.length,
       },
     }
   } catch (error) {

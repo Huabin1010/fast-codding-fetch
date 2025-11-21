@@ -3,28 +3,22 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Plus, FolderOpen, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, FolderOpen, Loader2 } from 'lucide-react'
 import { getProjectList } from './actions'
 import CreateProjectForm from './create-form'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // TODO: 从认证系统获取 userId
   // 当前使用管理员用户 ID (匹配 NextAuth 中的默认管理员账号)
   // 默认管理员: admin / 123456qq
   // 如果遇到 "User not found" 错误，请运行: pnpm db:seed
   const userId = '1'
-
-  const showMessage = (type: 'success' | 'error', text: string) => {
-    setMessage({ type, text })
-    setTimeout(() => setMessage(null), 5000)
-  }
 
   useEffect(() => {
     loadProjects()
@@ -36,7 +30,7 @@ export default function ProjectsPage() {
     if (result.success) {
       setProjects(result.data || [])
     } else {
-      showMessage('error', result.error || '加载项目失败')
+      toast.error(result.error || '加载项目失败')
     }
     setLoading(false)
   }
@@ -54,25 +48,6 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
-      {message && (
-        <Alert
-          className={
-            message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
-          }
-        >
-          {message.type === 'error' ? (
-            <XCircle className="h-4 w-4 text-red-600" />
-          ) : (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          )}
-          <AlertDescription
-            className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}
-          >
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
-
       {showCreateForm && (
         <CreateProjectForm
           userId={userId}
@@ -80,7 +55,6 @@ export default function ProjectsPage() {
             setShowCreateForm(false)
             loadProjects()
           }}
-          showMessage={showMessage}
         />
       )}
 

@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, FileText, Trash2, Loader2, Upload } from 'lucide-react'
-import { getFileList, deleteFile } from './files/actions'
-import UploadFileForm from './upload-file-form'
-import UploadTextForm from './upload-text-form'
+import { ChevronDown, ChevronRight, FileText, Trash2, Loader2, Upload } from 'lucide-react'
+import { getFileList, deleteFile, getFileChunks } from './files/actions'
+import UploadDialog from './upload-dialog'
+import { toast } from 'sonner'
 
 interface FileListProps {
   indexId: string
@@ -17,8 +17,9 @@ interface FileListProps {
 export default function FileList({ indexId, userId, showMessage }: FileListProps) {
   const [files, setFiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showUploadFile, setShowUploadFile] = useState(false)
-  const [showUploadText, setShowUploadText] = useState(false)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [expandedFile, setExpandedFile] = useState<string | null>(null)
+  const [chunks, setChunks] = useState<Record<string, any[]>>({})
 
   useEffect(() => {
     loadFiles()
@@ -30,9 +31,25 @@ export default function FileList({ indexId, userId, showMessage }: FileListProps
     if (result.success) {
       setFiles(result.data || [])
     } else {
-      showMessage('error', result.error || '加载文件失败')
+      toast.error(result.error || '加载文件失败')
     }
     setLoading(false)
+  }
+
+  const loadChunks = async (fileId: string) => {
+    if (chunks[fileId]) {
+      // 已经加载过，直接展开/收起
+      setExpandedFile(expandedFile === fileId ? null : fileId)
+      return
+    }
+
+    const result = await getFileChunks(fileId, userId)
+    if (result.success && result.data) {
+      setChunks(prev => ({ ...prev, [fileId]: result.data }))
+      setExpandedFile(fileId)
+    } else {
+      toast.error(result.error || '加载文档块失败')
+    }
   }
 
   const handleDelete = async (fileId: string, fileName: string) => {
@@ -40,10 +57,19 @@ export default function FileList({ indexId, userId, showMessage }: FileListProps
 
     const result = await deleteFile(fileId, userId)
     if (result.success) {
-      showMessage('success', '文件删除成功')
+      toast.success('文件删除成功')
       loadFiles()
+      // 清除缓存的 chunks
+      setChunks(prev => {
+        const newChunks = { ...prev }
+        delete newChunks[fileId]
+        return newChunks
+      })
+      if (expandedFile === fileId) {
+        setExpandedFile(null)
+      }
     } else {
-      showMessage('error', result.error || '删除失败')
+      toast.error(result.error || '删除失败')
     }
   }
 
@@ -60,41 +86,19 @@ export default function FileList({ indexId, userId, showMessage }: FileListProps
           <h2 className="text-xl font-semibold">文件列表</h2>
           <p className="text-sm text-gray-600 mt-1">管理索引中的文件和文档</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowUploadText(!showUploadText)}>
-            <Plus className="h-4 w-4 mr-2" />
-            上传文本
-          </Button>
-          <Button onClick={() => setShowUploadFile(!showUploadFile)}>
-            <Upload className="h-4 w-4 mr-2" />
-            上传文件
-          </Button>
-        </div>
+        <Button onClick={() => setShowUploadDialog(true)}>
+          <Upload className="h-4 w-4 mr-2" />
+          上传文件/文本
+        </Button>
       </div>
 
-      {showUploadFile && (
-        <UploadFileForm
-          indexId={indexId}
-          userId={userId}
-          onSuccess={() => {
-            setShowUploadFile(false)
-            loadFiles()
-          }}
-          showMessage={showMessage}
-        />
-      )}
-
-      {showUploadText && (
-        <UploadTextForm
-          indexId={indexId}
-          userId={userId}
-          onSuccess={() => {
-            setShowUploadText(false)
-            loadFiles()
-          }}
-          showMessage={showMessage}
-        />
-      )}
+      <UploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        indexId={indexId}
+        userId={userId}
+        onSuccess={loadFiles}
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -114,17 +118,29 @@ export default function FileList({ indexId, userId, showMessage }: FileListProps
       ) : (
         <div className="space-y-3">
           {files.map((file) => (
-            <Card key={file.id}>
-              <CardHeader>
+            <Card key={file.id} className="overflow-hidden">
+              <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => loadChunks(file.id)}
+                      className="p-1 h-auto"
+                    >
+                      {expandedFile === file.id ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
                     <FileText className="h-5 w-5 mt-0.5 text-blue-500" />
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base truncate">{file.name}</CardTitle>
-                      <CardDescription className="mt-1">
+                      <div className="font-medium truncate">{file.name}</div>
+                      <div className="text-sm text-gray-500 mt-1">
                         {formatFileSize(file.size)} · {file._count.chunks} 个文档块 ·{' '}
                         {new Date(file.createdAt).toLocaleString('zh-CN')}
-                      </CardDescription>
+                      </div>
                     </div>
                   </div>
                   <Button
@@ -136,7 +152,149 @@ export default function FileList({ indexId, userId, showMessage }: FileListProps
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </CardHeader>
+
+                {/* Chunks 列表 */}
+                {expandedFile === file.id && chunks[file.id] && (
+                  <div className="mt-4 space-y-2 pl-12">
+                    {(() => {
+                      const allChunks = chunks[file.id]
+                      const totalChunks = allChunks.length
+
+                      // 如果总数小于等于4个，全部显示
+                      if (totalChunks <= 4) {
+                        return allChunks.map((chunk: any, idx: number) => (
+                          <Card key={`${file.id}-${chunk.id}-${idx}`} className="bg-gray-50">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="text-sm font-medium">
+                                  Chunk {chunk.chunkIndex + 1} / {totalChunks}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  ID: {chunk.vectorId}
+                                </div>
+                              </div>
+                              <div
+                                id={`chunk-text-${file.id}-${idx}`}
+                                className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3"
+                              >
+                                {chunk.text}
+                              </div>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="mt-2 p-0 h-auto text-blue-600"
+                                onClick={() => {
+                                  const element = document.getElementById(
+                                    `chunk-text-${file.id}-${idx}`
+                                  )
+                                  if (element) {
+                                    element.classList.toggle('line-clamp-3')
+                                  }
+                                }}
+                              >
+                                展开/收起
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))
+                      }
+
+                      // 显示前2个和后2个
+                      const firstTwo = allChunks.slice(0, 2)
+                      const lastTwo = allChunks.slice(-2)
+                      const hiddenCount = totalChunks - 4
+
+                      return (
+                        <>
+                          {firstTwo.map((chunk: any, idx: number) => (
+                            <Card key={`${file.id}-${chunk.id}-${idx}`} className="bg-gray-50">
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="text-sm font-medium">
+                                    Chunk {chunk.chunkIndex + 1} / {totalChunks}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    ID: {chunk.vectorId}
+                                  </div>
+                                </div>
+                                <div
+                                  id={`chunk-text-${file.id}-${idx}`}
+                                  className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3"
+                                >
+                                  {chunk.text}
+                                </div>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="mt-2 p-0 h-auto text-blue-600"
+                                  onClick={() => {
+                                    const element = document.getElementById(
+                                      `chunk-text-${file.id}-${idx}`
+                                    )
+                                    if (element) {
+                                      element.classList.toggle('line-clamp-3')
+                                    }
+                                  }}
+                                >
+                                  展开/收起
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
+
+                          {/* 省略号提示 */}
+                          <div className="flex items-center justify-center py-4 text-gray-500">
+                            <div className="text-sm">··· {hiddenCount} 个文档块已隐藏 ···</div>
+                          </div>
+
+                          {/* 显示后2个 */}
+                          {lastTwo.map((chunk: any, idx: number) => {
+                            const actualIdx = totalChunks - 2 + idx
+                            return (
+                              <Card
+                                key={`${file.id}-${chunk.id}-${actualIdx}`}
+                                className="bg-gray-50"
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="text-sm font-medium">
+                                      Chunk {chunk.chunkIndex + 1} / {totalChunks}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      ID: {chunk.vectorId}
+                                    </div>
+                                  </div>
+                                  <div
+                                    id={`chunk-text-${file.id}-${actualIdx}`}
+                                    className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3"
+                                  >
+                                    {chunk.text}
+                                  </div>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="mt-2 p-0 h-auto text-blue-600"
+                                    onClick={() => {
+                                      const element = document.getElementById(
+                                        `chunk-text-${file.id}-${actualIdx}`
+                                      )
+                                      if (element) {
+                                        element.classList.toggle('line-clamp-3')
+                                      }
+                                    }}
+                                  >
+                                    展开/收起
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            )
+                          })}
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
             </Card>
           ))}
         </div>
