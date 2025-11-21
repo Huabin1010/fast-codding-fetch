@@ -7,6 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // NextAuth.js Models
@@ -45,6 +46,15 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  
+  // 新增：用户的项目
+  projects      Project[]
+  
+  // 新增：用户的 API Tokens
+  apiTokens     ApiToken[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model VerificationToken {
@@ -53,4 +63,100 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ==================== 新增：项目管理模型 ====================
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String   // 项目名称，如 "客户服务知识库"
+  description String?  // 项目描述
+  userId      String   // 项目所有者
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  indexes     Index[]  // 项目下的索引
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@unique([userId, name]) // 同一用户下项目名称唯一
+}
+
+// ==================== 新增：索引管理模型 ====================
+
+model Index {
+  id          String   @id @default(cuid())
+  name        String   // 索引名称（对应向量数据库中的表名）
+  dimension   Int      // 向量维度
+  projectId   String   // 所属项目
+  
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files       File[]   // 索引中的文件
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([projectId])
+  @@unique([projectId, name]) // 同一项目下索引名称唯一
+}
+
+// ==================== 新增：文件管理模型 ====================
+
+model File {
+  id          String   @id @default(cuid())
+  name        String   // 文件名
+  size        Int      // 文件大小（字节）
+  mimeType    String?  // MIME 类型
+  indexId     String   // 所属索引
+  
+  index       Index    @relation(fields: [indexId], references: [id], onDelete: Cascade)
+  chunks      Chunk[]  // 文件的文档块
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([indexId])
+  @@unique([indexId, name]) // 同一索引下文件名唯一
+}
+
+// ==================== 新增：文档块管理模型 ====================
+
+model Chunk {
+  id          String   @id @default(cuid())
+  vectorId    String   // 向量数据库中的 ID
+  text        String   // 文档块内容
+  chunkIndex  Int      // 块索引（在文件中的位置）
+  fileId      String   // 所属文件
+  
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  
+  // 可选：存储额外的元数据
+  metadata    String?  // JSON 格式的元数据
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([fileId])
+  @@index([vectorId])
+}
+
+// ==================== 新增：API Token 管理模型 ====================
+
+model ApiToken {
+  id          String    @id @default(cuid())
+  name        String    // Token 名称（用于标识用途）
+  token       String    @unique // Token 哈希值（SHA-256）
+  userId      String    // Token 所有者
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  isActive    Boolean   @default(true) // 是否启用
+  expiresAt   DateTime? // 过期时间（可选）
+  lastUsedAt  DateTime? // 最后使用时间
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([token])
 }

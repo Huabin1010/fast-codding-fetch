@@ -1,0 +1,122 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, Database, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { getIndex } from '@/app/admin/projects/[projectId]/indexes/actions'
+import FileList from './file-list'
+import SearchPanel from './search-panel'
+import Link from 'next/link'
+
+export default function IndexDetailPage({ params }: { params: { indexId: string } }) {
+  const [index, setIndex] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const userId = 'demo-user-id'
+
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text })
+    setTimeout(() => setMessage(null), 5000)
+  }
+
+  useEffect(() => {
+    loadIndex()
+  }, [])
+
+  const loadIndex = async () => {
+    setLoading(true)
+    const result = await getIndex(params.indexId, userId)
+    if (result.success) {
+      setIndex(result.data)
+    } else {
+      showMessage('error', result.error || '加载索引失败')
+    }
+    setLoading(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!index) {
+    return (
+      <div className="container mx-auto p-6">
+        <Alert className="border-red-200 bg-red-50">
+          <XCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">索引不存在或无权访问</AlertDescription>
+        </Alert>
+        <Link href="/admin/projects">
+          <Button variant="outline" className="mt-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            返回项目列表
+          </Button>
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/admin/projects/${index.project.id}`}>
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            返回项目
+          </Button>
+        </Link>
+        <div className="flex items-center gap-3">
+          <Database className="h-8 w-8 text-blue-600" />
+          <div>
+            <h1 className="text-3xl font-bold">{index.name}</h1>
+            <p className="text-gray-600 mt-1">
+              项目: {index.project.name} | 维度: {index.dimension}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {message && (
+        <Alert
+          className={
+            message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
+          }
+        >
+          {message.type === 'error' ? (
+            <XCircle className="h-4 w-4 text-red-600" />
+          ) : (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          )}
+          <AlertDescription
+            className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}
+          >
+            {message.text}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="files" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="files">文件管理</TabsTrigger>
+          <TabsTrigger value="search">向量搜索</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="files">
+          <FileList indexId={params.indexId} userId={userId} showMessage={showMessage} />
+        </TabsContent>
+
+        <TabsContent value="search">
+          <SearchPanel indexId={params.indexId} userId={userId} showMessage={showMessage} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
